@@ -1,0 +1,269 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==================== REGLAS PARA MOVIMIENTOS ====================
+    match /movimientos/{movimientoId} {
+      // Permitir lectura y escritura para usuarios autenticados (incluso anónimos)
+      allow read, write: if request.auth != null;
+      
+      // Validaciones para escritura
+      allow create: if request.auth != null 
+        && request.resource.data.keys().hasAll(['producto', 'cantidad', 'tipo', 'sede', 'timestamp'])
+        && request.resource.data.producto is string
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad > 0
+        && request.resource.data.tipo in ['entrada', 'salida', 'devolucion', 'ajuste']
+        && request.resource.data.sede is string
+        && request.resource.data.timestamp is string;
+        
+      // Validaciones para actualización
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasAll(['producto', 'cantidad', 'tipo', 'sede', 'timestamp'])
+        && request.resource.data.producto is string
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad > 0
+        && request.resource.data.tipo in ['entrada', 'salida', 'devolucion', 'ajuste']
+        && request.resource.data.sede is string
+        && request.resource.data.timestamp is string;
+    }
+    
+    // ==================== REGLAS PARA PRODUCTOS ====================
+    match /productos/{productoId} {
+      // Permitir lectura y escritura para usuarios autenticados
+      allow read, write: if request.auth != null;
+      
+      // Validaciones para creación de productos
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['producto', 'cantidad', 'sede', 'ultimaActualizacion'])
+        && request.resource.data.producto is string
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad >= 0
+        && request.resource.data.sede is string
+        && request.resource.data.ultimaActualizacion is string;
+        
+      // Validaciones para actualización de productos
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasAll(['producto', 'cantidad', 'sede', 'ultimaActualizacion'])
+        && request.resource.data.producto is string
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad >= 0
+        && request.resource.data.sede is string
+        && request.resource.data.ultimaActualizacion is string;
+    }
+    
+    // ==================== REGLAS PARA SEDES ====================
+    match /sedes/{sedeId} {
+      // Permitir lectura y escritura para usuarios autenticados
+      allow read, write: if request.auth != null;
+      
+      // Validaciones para creación de sedes
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['nombre'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0;
+        
+      // Validaciones para actualización de sedes
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasAll(['nombre'])
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0;
+    }
+    
+    // ==================== REGLAS PARA USUARIOS ====================
+    match /usuarios/{userId} {
+      // Permitir lectura y escritura solo para el usuario propietario
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Validaciones para creación de usuarios
+      allow create: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['email', 'nombre', 'rol'])
+        && request.resource.data.email is string
+        && request.resource.data.nombre is string
+        && request.resource.data.rol in ['admin', 'operador', 'consulta'];
+        
+      // Validaciones para actualización de usuarios
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['email', 'nombre', 'rol'])
+        && request.resource.data.email is string
+        && request.resource.data.nombre is string
+        && request.resource.data.rol in ['admin', 'operador', 'consulta'];
+    }
+    
+    // ==================== REGLAS PARA CONFIGURACIÓN ====================
+    match /configuracion/{configId} {
+      // Solo administradores pueden leer y escribir configuración
+      allow read, write: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA REPORTES ====================
+    match /reportes/{reporteId} {
+      // Permitir lectura para usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Solo administradores pueden crear reportes
+      allow create: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin', 'operador'];
+        
+      // Solo administradores pueden actualizar reportes
+      allow update: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA AUDITORÍA ====================
+    match /auditoria/{auditoriaId} {
+      // Solo administradores pueden leer auditoría
+      allow read: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+        
+      // Solo el sistema puede escribir auditoría
+      allow write: if false; // Se deshabilita la escritura manual
+    }
+    
+    // ==================== REGLAS PARA BACKUP ====================
+    match /backups/{backupId} {
+      // Solo administradores pueden acceder a backups
+      allow read, write: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA NOTIFICACIONES ====================
+    match /notificaciones/{notificacionId} {
+      // Permitir lectura para usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Solo administradores pueden crear notificaciones
+      allow create: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin', 'operador'];
+        
+      // Solo administradores pueden actualizar notificaciones
+      allow update: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA LOTES ====================
+    match /lotes/{loteId} {
+      // Permitir lectura y escritura para usuarios autenticados
+      allow read, write: if request.auth != null;
+      
+      // Validaciones para creación de lotes
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['producto', 'cantidad', 'fechaVencimiento', 'sede'])
+        && request.resource.data.producto is string
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad > 0
+        && request.resource.data.fechaVencimiento is string
+        && request.resource.data.sede is string;
+        
+      // Validaciones para actualización de lotes
+      allow update: if request.auth != null
+        && request.resource.data.keys().hasAll(['producto', 'cantidad', 'fechaVencimiento', 'sede'])
+        && request.resource.data.producto is string
+        && request.resource.data.cantidad is number
+        && request.resource.data.cantidad >= 0
+        && request.resource.data.fechaVencimiento is string
+        && request.resource.data.sede is string;
+    }
+    
+    // ==================== REGLAS PARA PROVEEDORES ====================
+    match /proveedores/{proveedorId} {
+      // Permitir lectura para usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Solo administradores pueden crear y actualizar proveedores
+      allow create, update: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA CATEGORÍAS ====================
+    match /categorias/{categoriaId} {
+      // Permitir lectura para usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Solo administradores pueden crear y actualizar categorías
+      allow create, update: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA ALERTAS ====================
+    match /alertas/{alertaId} {
+      // Permitir lectura para usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Solo administradores pueden crear y actualizar alertas
+      allow create, update: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA ESTADÍSTICAS ====================
+    match /estadisticas/{estadisticaId} {
+      // Permitir lectura para usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Solo administradores pueden crear y actualizar estadísticas
+      allow create, update: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    
+    // ==================== REGLAS PARA LOGS ====================
+    match /logs/{logId} {
+      // Solo administradores pueden leer logs
+      allow read: if request.auth != null 
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+        
+      // Solo el sistema puede escribir logs
+      allow write: if false; // Se deshabilita la escritura manual
+    }
+    
+    // ==================== REGLAS PARA SESIONES ====================
+    match /sesiones/{sesionId} {
+      // Permitir lectura y escritura solo para el usuario propietario
+      allow read, write: if request.auth != null && request.auth.uid == sesionId;
+    }
+    
+    // ==================== REGLAS PARA PREFERENCIAS ====================
+    match /preferencias/{preferenciaId} {
+      // Permitir lectura y escritura solo para el usuario propietario
+      allow read, write: if request.auth != null && request.auth.uid == preferenciaId;
+    }
+    
+    // ==================== REGLAS PARA TEMPORALES ====================
+    match /temporales/{temporalId} {
+      // Permitir lectura y escritura para usuarios autenticados
+      allow read, write: if request.auth != null;
+      
+      // Los documentos temporales expiran automáticamente
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['expiresAt'])
+        && request.resource.data.expiresAt is timestamp;
+    }
+    
+    // ==================== REGLAS PARA TEST ====================
+    match /test/{testId} {
+      // Solo permitir en desarrollo (comentar en producción)
+      allow read, write: if false; // Deshabilitado en producción
+    }
+    
+    // ==================== REGLAS POR DEFECTO ====================
+    // Denegar acceso a cualquier otra colección no especificada
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,86 @@
+/* Estilos específicos para el botón de Firebase */
+.boton-menu.firebase {
+    border-color: #4285f4;
+    background: linear-gradient(135deg, rgba(66, 133, 244, 0.05) 0%, rgba(66, 133, 244, 0.1) 100%);
+}
+
+.boton-menu.firebase:hover {
+    border-color: #4285f4;
+    background: linear-gradient(135deg, rgba(66, 133, 244, 0.1) 0%, rgba(66, 133, 244, 0.2) 100%);
+}
+
+/* Indicador de estado de Firebase */
+.firebase-status {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.firebase-status.connected {
+    background: linear-gradient(135deg, #4CAF50, #45B649);
+    color: white;
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+.firebase-status.disconnected {
+    background: linear-gradient(135deg, #f44336, #e53935);
+    color: white;
+    box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
+}
+
+.firebase-status.syncing {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+}
+
+/* Animación de sincronización */
+@keyframes sync-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+.firebase-status.syncing {
+    animation: sync-pulse 1.5s ease-in-out infinite;
+}
+
+/* Estilos para notificaciones de Firebase */
+.firebase-notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    max-width: 350px;
+    padding: 15px 20px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    z-index: 1001;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.firebase-notification.show {
+    transform: translateX(0);
+}
+
+.firebase-notification.success {
+    background: linear-gradient(135deg, #4CAF50, #45B649);
+    color: white;
+}
+
+.firebase-notification.error {
+    background: linear-gradient(135deg, #f44336, #e53935);
+    color: white;
+}
+
+.firebase-notification.info {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+}
