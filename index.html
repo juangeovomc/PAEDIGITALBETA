@@ -30306,10 +30306,10 @@
                     throw new Error('Firebase no está inicializado');
                 }
                 
-                // Verificar autenticación
+                // Verificar autenticación (sin forzar autenticación anónima)
                 if (!window.auth.currentUser) {
-                    console.log('⚠️ Usuario no autenticado, intentando autenticación...');
-                    await window.auth.signInAnonymously();
+                    console.log('ℹ️ Usuario no autenticado, continuando sin autenticación');
+                    // No forzar autenticación anónima para evitar errores
                 }
                 
                 // Probar escritura simple

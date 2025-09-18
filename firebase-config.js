@@ -83,14 +83,19 @@ function mostrarNotificacionFirebase(mensaje, tipo = 'info') {
     }, 3000);
 }
 
-// Autenticación anónima
-signInAnonymously(auth).then(() => {
-    console.log('✅ Autenticado anónimamente con Firebase');
-    actualizarIndicadorFirebase('connected', 'Conectado a Firebase - Datos sincronizados');
-}).catch((error) => {
-    console.error('❌ Error de autenticación:', error);
-    actualizarIndicadorFirebase('disconnected', 'Error de conexión - Modo local');
-});
+// Autenticación anónima deshabilitada temporalmente para evitar errores
+// signInAnonymously(auth).then(() => {
+//     console.log('✅ Autenticado anónimamente con Firebase');
+//     actualizarIndicadorFirebase('connected', 'Conectado a Firebase - Datos sincronizados');
+// }).catch((error) => {
+//     console.warn('⚠️ Error de autenticación anónima:', error.message);
+//     console.log('ℹ️ Continuando en modo local sin autenticación');
+//     actualizarIndicadorFirebase('disconnected', 'Modo local - Sin autenticación');
+// });
+
+// Configurar estado inicial sin autenticación
+console.log('ℹ️ Firebase configurado sin autenticación anónima');
+actualizarIndicadorFirebase('disconnected', 'Modo local - Sin autenticación');
 
 // ==================== FUNCIONES PARA MOVIMIENTOS ====================
 
@@ -747,10 +752,10 @@ window.guardarLotesFirebase = async function(clave, lotesArray) {
             throw new Error('setDoc no está disponible. Verifica las importaciones de Firebase.');
         }
         
-        // Verificar autenticación
+        // Verificar autenticación (sin forzar autenticación anónima)
         if (!auth.currentUser) {
-            console.warn('⚠️ Usuario no autenticado, intentando autenticación anónima...');
-            await signInAnonymously(auth);
+            console.log('ℹ️ Usuario no autenticado, continuando sin autenticación');
+            // No forzar autenticación anónima para evitar errores
         }
         
         const docRef = doc(db, "lotes", clave);
@@ -792,10 +797,10 @@ window.guardarFechasVencimientoFirebase = async function(clave, fechasArray) {
             throw new Error('setDoc no está disponible. Verifica las importaciones de Firebase.');
         }
         
-        // Verificar autenticación
+        // Verificar autenticación (sin forzar autenticación anónima)
         if (!auth.currentUser) {
-            console.warn('⚠️ Usuario no autenticado, intentando autenticación anónima...');
-            await signInAnonymously(auth);
+            console.log('ℹ️ Usuario no autenticado, continuando sin autenticación');
+            // No forzar autenticación anónima para evitar errores
         }
         
         const docRef = doc(db, "fechasVencimiento", clave);
