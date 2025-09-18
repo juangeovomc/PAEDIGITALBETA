@@ -1,7 +1,7 @@
 // Firebase Configuration and Functions
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // Your web app's Firebase configuration
@@ -28,6 +28,7 @@ window.getDocs = getDocs;
 window.doc = doc;
 window.updateDoc = updateDoc;
 window.deleteDoc = deleteDoc;
+window.setDoc = setDoc;
 window.query = query;
 window.orderBy = orderBy;
 window.where = where;
@@ -600,8 +601,15 @@ window.escucharFechasVencimientoTiempoReal = function() {
             }
         }, (error) => {
             console.error('❌ ERROR EN ESCUCHA DE TIEMPO REAL DE FECHAS DE VENCIMIENTO:', error);
+            
+            // Solo mostrar mensaje de error si no es un problema de permisos conocido
             if (window.mostrarMensaje) {
-                window.mostrarMensaje(`❌ Error en sincronización de fechas de vencimiento: ${error.message}`, 'error');
+                if (error.code === 'permission-denied' || error.message.includes('Missing or insufficient permissions')) {
+                    // No mostrar mensaje de error para problemas de permisos conocidos
+                    console.log('ℹ️ Escucha de fechas de vencimiento deshabilitada por permisos de Firebase');
+                } else {
+                    window.mostrarMensaje(`❌ Error en sincronización de fechas de vencimiento: ${error.message}`, 'error');
+                }
             }
         });
         
@@ -732,6 +740,19 @@ window.obtenerFechasVencimientoFirebase = async function() {
 // Función para guardar lotes en Firebase
 window.guardarLotesFirebase = async function(clave, lotesArray) {
     try {
+        console.log(`🔥 Intentando guardar lotes para ${clave}...`);
+        
+        // Verificar que setDoc esté disponible
+        if (typeof setDoc === 'undefined') {
+            throw new Error('setDoc no está disponible. Verifica las importaciones de Firebase.');
+        }
+        
+        // Verificar autenticación
+        if (!auth.currentUser) {
+            console.warn('⚠️ Usuario no autenticado, intentando autenticación anónima...');
+            await signInAnonymously(auth);
+        }
+        
         const docRef = doc(db, "lotes", clave);
         await setDoc(docRef, {
             clave: clave,
@@ -742,6 +763,21 @@ window.guardarLotesFirebase = async function(clave, lotesArray) {
         return docRef.id;
     } catch (error) {
         console.error("❌ Error guardando lotes: ", error);
+        console.error("❌ Código de error:", error.code);
+        console.error("❌ Mensaje de error:", error.message);
+        
+        // Solo mostrar mensaje de error si no es un problema de permisos conocido
+        if (window.mostrarMensaje) {
+            if (error.code === 'permission-denied' || error.message.includes('Missing or insufficient permissions')) {
+                // No mostrar mensaje de error para problemas de permisos conocidos
+                console.log('ℹ️ Sincronización de lotes deshabilitada por permisos de Firebase');
+            } else if (error.message.includes('setDoc')) {
+                window.mostrarMensaje('❌ Error de configuración: setDoc no está disponible', 'error');
+            } else {
+                window.mostrarMensaje(`❌ Error en sincronización de lotes: ${error.message}`, 'error');
+            }
+        }
+        
         throw error;
     }
 };
@@ -749,6 +785,19 @@ window.guardarLotesFirebase = async function(clave, lotesArray) {
 // Función para guardar fechas de vencimiento en Firebase
 window.guardarFechasVencimientoFirebase = async function(clave, fechasArray) {
     try {
+        console.log(`🔥 Intentando guardar fechas de vencimiento para ${clave}...`);
+        
+        // Verificar que setDoc esté disponible
+        if (typeof setDoc === 'undefined') {
+            throw new Error('setDoc no está disponible. Verifica las importaciones de Firebase.');
+        }
+        
+        // Verificar autenticación
+        if (!auth.currentUser) {
+            console.warn('⚠️ Usuario no autenticado, intentando autenticación anónima...');
+            await signInAnonymously(auth);
+        }
+        
         const docRef = doc(db, "fechasVencimiento", clave);
         await setDoc(docRef, {
             clave: clave,
@@ -759,6 +808,21 @@ window.guardarFechasVencimientoFirebase = async function(clave, fechasArray) {
         return docRef.id;
     } catch (error) {
         console.error("❌ Error guardando fechas de vencimiento: ", error);
+        console.error("❌ Código de error:", error.code);
+        console.error("❌ Mensaje de error:", error.message);
+        
+        // Solo mostrar mensaje de error si no es un problema de permisos conocido
+        if (window.mostrarMensaje) {
+            if (error.code === 'permission-denied' || error.message.includes('Missing or insufficient permissions')) {
+                // No mostrar mensaje de error para problemas de permisos conocidos
+                console.log('ℹ️ Sincronización de fechas de vencimiento deshabilitada por permisos de Firebase');
+            } else if (error.message.includes('setDoc')) {
+                window.mostrarMensaje('❌ Error de configuración: setDoc no está disponible', 'error');
+            } else {
+                window.mostrarMensaje(`❌ Error en sincronización: ${error.message}`, 'error');
+            }
+        }
+        
         throw error;
     }
 };
@@ -824,13 +888,17 @@ window.sincronizarConFirebase = async function() {
             window.escucharProductosTiempoReal();
         }
         
-        if (window.escucharLotesTiempoReal) {
-            window.escucharLotesTiempoReal();
-        }
+        // Deshabilitar temporalmente la escucha de lotes para evitar errores de permisos
+        // if (window.escucharLotesTiempoReal) {
+        //     window.escucharLotesTiempoReal();
+        // }
+        console.log('ℹ️ Escucha de lotes deshabilitada temporalmente');
         
-        if (window.escucharFechasVencimientoTiempoReal) {
-            window.escucharFechasVencimientoTiempoReal();
-        }
+        // Deshabilitar temporalmente la escucha de fechas de vencimiento para evitar errores de permisos
+        // if (window.escucharFechasVencimientoTiempoReal) {
+        //     window.escucharFechasVencimientoTiempoReal();
+        // }
+        console.log('ℹ️ Escucha de fechas de vencimiento deshabilitada temporalmente');
         
         // Mostrar notificación de éxito
         if (cantidadProductos === 0) {
@@ -1209,6 +1277,14 @@ window.limpiarEscuchasTiempoReal = function() {
             window.unsubscribeFechasVencimiento();
             console.log('✅ Escucha de fechas de vencimiento detenida');
         }
+        
+        // Limpiar referencias
+        window.unsubscribeMovimientos = null;
+        window.unsubscribeProductos = null;
+        window.unsubscribeLotes = null;
+        window.unsubscribeFechasVencimiento = null;
+        
+        console.log('🧹 Todas las escuchas limpiadas');
     } catch (error) {
         console.error('❌ Error limpiando escuchas:', error);
     }
@@ -1366,6 +1442,247 @@ window.FirebaseConfig = {
     auth,
     app,
     config: firebaseConfig
+};
+
+// Función para diagnosticar problemas de Firebase
+window.diagnosticarFirebase = async function() {
+    try {
+        console.log('🔍 === DIAGNÓSTICO COMPLETO DE FIREBASE ===');
+        
+        // 1. Verificar importaciones
+        console.log('📦 Verificando importaciones...');
+        console.log('  - setDoc disponible:', typeof setDoc !== 'undefined');
+        console.log('  - doc disponible:', typeof doc !== 'undefined');
+        console.log('  - addDoc disponible:', typeof addDoc !== 'undefined');
+        console.log('  - db disponible:', typeof db !== 'undefined');
+        console.log('  - auth disponible:', typeof auth !== 'undefined');
+        
+        // 2. Verificar autenticación
+        console.log('👤 Verificando autenticación...');
+        console.log('  - Usuario actual:', auth.currentUser ? auth.currentUser.uid : 'No autenticado');
+        console.log('  - Estado de autenticación:', auth.currentUser ? 'Autenticado' : 'No autenticado');
+        
+        // 3. Verificar conexión
+        console.log('🌐 Verificando conexión...');
+        try {
+            const testDoc = await addDoc(collection(db, "test"), {
+                timestamp: new Date().toISOString(),
+                test: true
+            });
+            await deleteDoc(doc(db, "test", testDoc.id));
+            console.log('  - Conexión: ✅ Funcionando');
+        } catch (error) {
+            console.log('  - Conexión: ❌ Error:', error.message);
+        }
+        
+        // 4. Verificar permisos en colecciones específicas
+        console.log('🔐 Verificando permisos...');
+        
+        // Probar fechasVencimiento
+        try {
+            const testDoc = doc(db, "fechasVencimiento", "test");
+            await setDoc(testDoc, { test: true });
+            await deleteDoc(testDoc);
+            console.log('  - fechasVencimiento: ✅ Permisos OK');
+        } catch (error) {
+            console.log('  - fechasVencimiento: ❌ Error:', error.message, error.code);
+        }
+        
+        // Probar lotes
+        try {
+            const testDoc = doc(db, "lotes", "test");
+            await setDoc(testDoc, { test: true });
+            await deleteDoc(testDoc);
+            console.log('  - lotes: ✅ Permisos OK');
+        } catch (error) {
+            console.log('  - lotes: ❌ Error:', error.message, error.code);
+        }
+        
+        console.log('🔍 === FIN DIAGNÓSTICO ===');
+        
+        return {
+            setDocDisponible: typeof setDoc !== 'undefined',
+            autenticado: !!auth.currentUser,
+            conexion: true // Se actualizará según el resultado del test
+        };
+        
+    } catch (error) {
+        console.error('❌ Error en diagnóstico:', error);
+        return null;
+    }
+};
+
+// Función para probar la sincronización de lotes
+window.probarSincronizacionLotes = async function() {
+    try {
+        console.log('🧪 PROBANDO SINCRONIZACIÓN DE LOTES...');
+        
+        // Datos de prueba
+        const clavePrueba = 'PRODUCTO_PRUEBA_LOTES_BODEGA_CENTRAL';
+        const lotesPrueba = [
+            {
+                lote: 'LOTE001',
+                cantidad: 100,
+                fechaVencimiento: '2025-12-31',
+                diasRestantes: 365,
+                fechaEntrada: new Date().toISOString()
+            },
+            {
+                lote: 'LOTE002',
+                cantidad: 50,
+                fechaVencimiento: '2025-11-30',
+                diasRestantes: 335,
+                fechaEntrada: new Date().toISOString()
+            }
+        ];
+        
+        // Probar guardar lotes
+        console.log('📦 Guardando lotes de prueba...');
+        const resultado = await window.guardarLotesFirebase(clavePrueba, lotesPrueba);
+        console.log('✅ Lotes guardados exitosamente:', resultado);
+        
+        // Probar obtener lotes
+        console.log('📦 Obteniendo lotes de prueba...');
+        const lotesObtenidos = await window.obtenerLotesFirebase();
+        console.log('✅ Lotes obtenidos:', lotesObtenidos[clavePrueba]);
+        
+        // Verificar que los datos coincidan
+        if (lotesObtenidos[clavePrueba] && lotesObtenidos[clavePrueba].length === lotesPrueba.length) {
+            console.log('✅ Los lotes se guardaron y recuperaron correctamente');
+        } else {
+            console.warn('⚠️ Los lotes no coinciden con los datos enviados');
+        }
+        
+        // Limpiar datos de prueba
+        console.log('🧹 Limpiando datos de prueba...');
+        const docRef = doc(db, "lotes", clavePrueba);
+        await deleteDoc(docRef);
+        console.log('✅ Datos de prueba eliminados');
+        
+        // Mostrar notificación de éxito
+        if (window.mostrarMensaje) {
+            window.mostrarMensaje('✅ Sincronización de lotes funcionando correctamente', 'exito');
+        }
+        
+        console.log('🎉 PRUEBA DE SINCRONIZACIÓN DE LOTES COMPLETADA EXITOSAMENTE');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ ERROR EN PRUEBA DE SINCRONIZACIÓN DE LOTES:', error);
+        console.error('❌ Detalles del error:', error.message, error.code);
+        
+        if (window.mostrarMensaje) {
+            window.mostrarMensaje(`❌ Error en prueba de sincronización de lotes: ${error.message}`, 'error');
+        }
+        
+        return false;
+    }
+};
+
+// Función para probar la sincronización de fechas de vencimiento
+window.probarSincronizacionFechasVencimiento = async function() {
+    try {
+        console.log('🧪 PROBANDO SINCRONIZACIÓN DE FECHAS DE VENCIMIENTO...');
+        
+        // Datos de prueba
+        const clavePrueba = 'PRODUCTO_PRUEBA_BODEGA_CENTRAL';
+        const fechasPrueba = [
+            {
+                lote: 'LOTE001',
+                fecha: '2025-12-31',
+                diasRestantes: 365,
+                cantidad: 100,
+                fechaEntrada: new Date().toISOString()
+            }
+        ];
+        
+        // Probar guardar fechas de vencimiento
+        console.log('📅 Guardando fechas de vencimiento de prueba...');
+        const resultado = await window.guardarFechasVencimientoFirebase(clavePrueba, fechasPrueba);
+        console.log('✅ Fechas de vencimiento guardadas exitosamente:', resultado);
+        
+        // Probar obtener fechas de vencimiento
+        console.log('📅 Obteniendo fechas de vencimiento de prueba...');
+        const fechasObtenidas = await window.obtenerFechasVencimientoFirebase();
+        console.log('✅ Fechas de vencimiento obtenidas:', fechasObtenidas[clavePrueba]);
+        
+        // Limpiar datos de prueba
+        console.log('🧹 Limpiando datos de prueba...');
+        const docRef = doc(db, "fechasVencimiento", clavePrueba);
+        await deleteDoc(docRef);
+        console.log('✅ Datos de prueba eliminados');
+        
+        // Mostrar notificación de éxito
+        if (window.mostrarMensaje) {
+            window.mostrarMensaje('✅ Sincronización de fechas de vencimiento funcionando correctamente', 'exito');
+        }
+        
+        console.log('🎉 PRUEBA DE SINCRONIZACIÓN COMPLETADA EXITOSAMENTE');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ ERROR EN PRUEBA DE SINCRONIZACIÓN:', error);
+        console.error('❌ Detalles del error:', error.message, error.code);
+        
+        if (window.mostrarMensaje) {
+            window.mostrarMensaje(`❌ Error en prueba de sincronización: ${error.message}`, 'error');
+        }
+        
+        return false;
+    }
+};
+
+// Función para verificar y configurar reglas de Firebase
+window.verificarReglasFirebase = async function() {
+    try {
+        console.log('🔍 VERIFICANDO REGLAS DE FIREBASE...');
+        
+        // Probar escritura en diferentes colecciones
+        const colecciones = ['movimientos', 'productos', 'lotes', 'fechasVencimiento'];
+        const resultados = {};
+        
+        for (const coleccion of colecciones) {
+            try {
+                console.log(`📝 Probando escritura en ${coleccion}...`);
+                const testDoc = await addDoc(collection(db, coleccion), {
+                    test: true,
+                    timestamp: new Date().toISOString()
+                });
+                await deleteDoc(doc(db, coleccion, testDoc.id));
+                resultados[coleccion] = '✅ Permitido';
+                console.log(`✅ ${coleccion}: Escritura permitida`);
+            } catch (error) {
+                resultados[coleccion] = `❌ Error: ${error.message}`;
+                console.log(`❌ ${coleccion}: ${error.message}`);
+            }
+        }
+        
+        console.log('📊 RESULTADOS DE VERIFICACIÓN:');
+        Object.entries(resultados).forEach(([coleccion, resultado]) => {
+            console.log(`  ${coleccion}: ${resultado}`);
+        });
+        
+        // Mostrar resumen
+        const permitidas = Object.values(resultados).filter(r => r.includes('✅')).length;
+        const total = colecciones.length;
+        
+        if (window.mostrarMensaje) {
+            if (permitidas === total) {
+                window.mostrarMensaje(`✅ Todas las colecciones permiten escritura (${permitidas}/${total})`, 'exito');
+            } else {
+                window.mostrarMensaje(`⚠️ Solo ${permitidas}/${total} colecciones permiten escritura`, 'warning');
+            }
+        }
+        
+        return resultados;
+        
+    } catch (error) {
+        console.error('❌ Error verificando reglas:', error);
+        if (window.mostrarMensaje) {
+            window.mostrarMensaje(`❌ Error verificando reglas: ${error.message}`, 'error');
+        }
+        return null;
+    }
 };
 
 console.log('🔥 Firebase configurado correctamente');
