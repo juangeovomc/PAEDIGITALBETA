@@ -1,7 +1,7 @@
 // Firebase Configuration and Functions
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, where, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 // Your web app's Firebase configuration
@@ -32,6 +32,7 @@ window.query = query;
 window.orderBy = orderBy;
 window.where = where;
 window.onSnapshot = onSnapshot;
+window.setDoc = setDoc;
 
 // Función para actualizar el indicador de estado
 function actualizarIndicadorFirebase(estado, mensaje) {
