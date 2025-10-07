@@ -34,6 +34,31 @@ window.where = where;
 window.onSnapshot = onSnapshot;
 window.setDoc = setDoc;
 
+// Helper: guardado seguro en localStorage con liberación de espacio
+window.safeLocalSet = function(key, value) {
+    try {
+        const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+        localStorage.setItem(key, serialized);
+    } catch (err) {
+        console.warn('⚠️ No se pudo guardar en localStorage por cuota. Intentando liberar espacio...', err?.name || err);
+        // Intentar liberar espacio eliminando caches de menor prioridad
+        const keysParaPurgar = [
+            'productosSeleccionadosSalida',
+            'comentariosStock',
+            'reporteEstado'
+        ];
+        try {
+            keysParaPurgar.forEach(k => localStorage.removeItem(k));
+        } catch (_) {}
+        try {
+            const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+            localStorage.setItem(key, serialized);
+        } catch (err2) {
+            console.error('❌ Falló el guardado incluso tras purga. Se omite persistencia para', key, err2?.name || err2);
+        }
+    }
+};
+
 // Función para actualizar el indicador de estado
 function actualizarIndicadorFirebase(estado, mensaje) {
     const indicador = document.getElementById('indicador-conexion');
@@ -89,7 +114,11 @@ signInAnonymously(auth).then(() => {
     actualizarIndicadorFirebase('connected', 'Conectado a Firebase - Datos sincronizados');
 }).catch((error) => {
     console.error('❌ Error de autenticación:', error);
-    actualizarIndicadorFirebase('disconnected', 'Error de conexión - Modo local');
+    const msg = (error && error.code === 'auth/operation-not-allowed')
+        ? 'Autenticación anónima deshabilitada. Actívala en Firebase Console > Authentication.'
+        : 'Error de conexión - Modo local';
+    actualizarIndicadorFirebase('disconnected', msg);
+    try { mostrarNotificacionFirebase(msg, 'error'); } catch(_) {}
 });
 
 // ==================== FUNCIONES PARA MOVIMIENTOS ====================
@@ -109,7 +138,7 @@ window.agregarMovimientoFirebase = async function(movimiento) {
         // Actualizar localStorage también
         const movimientos = JSON.parse(localStorage.getItem('historial') || '[]');
         movimientos.unshift({ id: docRef.id, ...movimiento, timestamp: new Date().toISOString() });
-        localStorage.setItem('historial', JSON.stringify(movimientos));
+        window.safeLocalSet('historial', movimientos);
         
         // Si es un movimiento de entrada, salida o devolución, actualizar el inventario en Firebase
         if (movimiento.tipo === 'entrada' || movimiento.tipo === 'salida' || movimiento.tipo === 'devolucion') {
@@ -308,7 +337,7 @@ window.actualizarInventarioLocal = async function(movimiento) {
         }
         
         // Guardar en localStorage
-        localStorage.setItem('inventario', JSON.stringify(window.inventario));
+        window.safeLocalSet('inventario', window.inventario);
         console.log("💾 Inventario local guardado en localStorage");
         
         // Actualizar la interfaz de stock siempre que haya cambios
@@ -362,7 +391,7 @@ window.escucharMovimientosTiempoReal = function() {
                 console.log(`✅ HISTORIAL ACTUALIZADO CON ${movimientos.length} MOVIMIENTOS`);
                 
                 // Guardar en localStorage
-                localStorage.setItem('historial', JSON.stringify(movimientos));
+                window.safeLocalSet('historial', movimientos);
                 console.log('💾 Historial guardado en localStorage');
                 
                 // Actualizar la interfaz de historial siempre que haya cambios
@@ -415,7 +444,7 @@ window.agregarProductoFirebase = async function(producto) {
         // Actualizar localStorage también
         const productos = JSON.parse(localStorage.getItem('productos') || '[]');
         productos.push({ id: docRef.id, ...producto, ultimaActualizacion: new Date().toISOString() });
-        localStorage.setItem('productos', JSON.stringify(productos));
+        window.safeLocalSet('productos', productos);
         
         return docRef.id;
     } catch (error) {
@@ -478,7 +507,7 @@ window.escucharProductosTiempoReal = function() {
                 console.log(`✅ INVENTARIO ACTUALIZADO CON ${Object.keys(nuevoInventario).length} PRODUCTOS`);
                 
                 // Guardar en localStorage
-                localStorage.setItem('inventario', JSON.stringify(nuevoInventario));
+                window.safeLocalSet('inventario', nuevoInventario);
                 console.log('💾 Inventario guardado en localStorage');
                 
                 // Actualizar la interfaz de stock siempre que haya cambios
@@ -538,7 +567,7 @@ window.escucharLotesTiempoReal = function() {
                 console.log(`✅ LOTES ACTUALIZADOS CON ${Object.keys(lotes).length} PRODUCTOS`);
                 
                 // Guardar en localStorage
-                localStorage.setItem('lotes', JSON.stringify(lotes));
+                window.safeLocalSet('lotes', lotes);
                 console.log('💾 Lotes guardados en localStorage');
                 
                 // Actualizar la interfaz de stock siempre que haya cambios
@@ -588,7 +617,7 @@ window.escucharFechasVencimientoTiempoReal = function() {
                 console.log(`✅ FECHAS DE VENCIMIENTO ACTUALIZADAS CON ${Object.keys(fechasVencimiento).length} PRODUCTOS`);
                 
                 // Guardar en localStorage
-                localStorage.setItem('fechasVencimiento', JSON.stringify(fechasVencimiento));
+                window.safeLocalSet('fechasVencimiento', fechasVencimiento);
                 console.log('💾 Fechas de vencimiento guardadas en localStorage');
                 
                 // Actualizar la interfaz de stock siempre que haya cambios
@@ -631,7 +660,7 @@ window.actualizarProductoFirebase = async function(productoId, datosActualizados
         const index = productos.findIndex(p => p.id === productoId);
         if (index !== -1) {
             productos[index] = { ...productos[index], ...datosActualizados, ultimaActualizacion: new Date().toISOString() };
-            localStorage.setItem('productos', JSON.stringify(productos));
+            window.safeLocalSet('productos', productos);
         }
         
     } catch (error) {
@@ -649,7 +678,7 @@ window.eliminarProductoFirebase = async function(productoId) {
         // Actualizar localStorage también
         const productos = JSON.parse(localStorage.getItem('productos') || '[]');
         const productosFiltrados = productos.filter(p => p.id !== productoId);
-        localStorage.setItem('productos', JSON.stringify(productosFiltrados));
+        window.safeLocalSet('productos', productosFiltrados);
         
     } catch (error) {
         console.error("❌ Error eliminando producto: ", error);
@@ -671,7 +700,7 @@ window.agregarSedeFirebase = async function(sede) {
         // Actualizar localStorage también
         const sedes = JSON.parse(localStorage.getItem('sedes') || '[]');
         sedes.push({ id: docRef.id, ...sede, fechaCreacion: new Date().toISOString() });
-        localStorage.setItem('sedes', JSON.stringify(sedes));
+        window.safeLocalSet('sedes', sedes);
         
         return docRef.id;
     } catch (error) {
@@ -782,11 +811,11 @@ window.sincronizarConFirebase = async function() {
         const fechasVencimientoFirebase = await obtenerFechasVencimientoFirebase();
 
         // Actualizar localStorage con datos de Firebase
-        localStorage.setItem('historial', JSON.stringify(movimientosFirebase));
-        localStorage.setItem('productos', JSON.stringify(productosFirebase));
-        localStorage.setItem('sedes', JSON.stringify(sedesFirebase));
-        localStorage.setItem('lotes', JSON.stringify(lotesFirebase));
-        localStorage.setItem('fechasVencimiento', JSON.stringify(fechasVencimientoFirebase));
+        window.safeLocalSet('historial', movimientosFirebase);
+        window.safeLocalSet('productos', productosFirebase);
+        window.safeLocalSet('sedes', sedesFirebase);
+        window.safeLocalSet('lotes', lotesFirebase);
+        window.safeLocalSet('fechasVencimiento', fechasVencimientoFirebase);
 
         // Actualizar variables globales si están disponibles
         if (window.historial !== undefined) {
@@ -1268,7 +1297,7 @@ window.actualizarInventarioDesdeFirebase = async function() {
         }
         
         // Guardar en localStorage
-        localStorage.setItem('inventario', JSON.stringify(nuevoInventario));
+        window.safeLocalSet('inventario', nuevoInventario);
         console.log('💾 Inventario guardado en localStorage');
         
         // Actualizar interfaz
